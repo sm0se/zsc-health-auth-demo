@@ -10,9 +10,13 @@ cd "$(dirname "$0")/.."
 mkdir -p .run
 : > .run/pids
 
+# Build once up front. All five services reference Zsc.CommonRoutes, so five
+# concurrent `dotnet run` invocations would race on the same build outputs.
+dotnet build --nologo -v q
+
 start() {
   local name=$1 project=$2 port=$3
-  dotnet run --project "src/$project" --no-launch-profile > ".run/$name.log" 2>&1 &
+  dotnet run --project "src/$project" --no-build --no-launch-profile > ".run/$name.log" 2>&1 &
   echo "$! $name $port" >> .run/pids
   echo "started $name (pid $!) on :$port"
 }
