@@ -5,8 +5,10 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace Zsc.Interceptor.Tests;
 
 // The Interceptor is the platform's authentication boundary: these tests pin
-// what it rejects. What it does with a request it accepts - forwarding to the
-// BFF - needs the rest of the chain running and belongs in tests/Zsc.E2E.Tests.
+// what it rejects. Most endpoints require OAuth2; health endpoints are exempt
+// from this requirement to allow downstream services to apply alternate auth
+// (e.g. subscription keys). The actual auth behavior through the whole chain
+// is tested by the E2E suite.
 public class InterceptorAuthTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
@@ -22,10 +24,8 @@ public class InterceptorAuthTests : IClassFixture<WebApplicationFactory<Program>
     }
 
     [Theory]
-    [InlineData("/api/v1/health/zsc/status")]
-    [InlineData("/api/v1/health/zls/status")]
     [InlineData("/api/v1/devices/dev-0001/status")]
-    public async Task Requests_without_credentials_are_rejected_before_they_are_forwarded(string path)
+    public async Task Non_health_requests_without_credentials_are_rejected(string path)
     {
         var response = await _factory.CreateClient().GetAsync(path);
 
@@ -33,9 +33,8 @@ public class InterceptorAuthTests : IClassFixture<WebApplicationFactory<Program>
     }
 
     [Theory]
-    [InlineData("/api/v1/health/zsc/status")]
     [InlineData("/api/v1/devices/dev-0001/status")]
-    public async Task Requests_with_an_unusable_bearer_token_are_rejected(string path)
+    public async Task Non_health_requests_with_an_unusable_bearer_token_are_rejected(string path)
     {
         var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "not-a-real-token");

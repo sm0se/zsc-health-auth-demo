@@ -11,7 +11,7 @@ using Zsc.CommonRoutes;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddZscPlatformAuth(builder.Configuration);
+builder.Services.AddZscPlatformAuthWithFallback(builder.Configuration);
 
 var app = builder.Build();
 

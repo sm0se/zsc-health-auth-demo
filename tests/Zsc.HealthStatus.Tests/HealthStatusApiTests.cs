@@ -14,17 +14,19 @@ namespace Zsc.HealthStatus.Tests;
 // to talk to. They pin what this service requires of a caller - not what a
 // caller actually experiences through the chain, which is what
 // tests/Zsc.E2E.Tests is for.
+//
+// As of R1, the API requires subscription key authentication, not OAuth2 bearer.
 public class HealthStatusApiTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
+    private const string ValidSubscriptionKey = "zsc-demo-subscription-key-001";
 
     public HealthStatusApiTests(WebApplicationFactory<Program> factory) => _factory = factory;
 
-    private HttpClient AuthenticatedClient()
+    private HttpClient AuthenticatedClientWithSubscriptionKey(string? key = null)
     {
         var client = _factory.CreateClient();
-        var options = _factory.Services.GetRequiredService<ZscOAuth2Options>();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", DevTokenIssuer.Issue(options));
+        client.DefaultRequestHeaders.Add(ZscHeaders.SubscriptionKey, key ?? ValidSubscriptionKey);
         return client;
     }
 
@@ -51,7 +53,7 @@ public class HealthStatusApiTests : IClassFixture<WebApplicationFactory<Program>
     [InlineData("/internal/health/zls/status", "ZLS")]
     public async Task Platform_status_is_served_to_an_authenticated_caller(string path, string platform)
     {
-        var response = await AuthenticatedClient().GetAsync(path);
+        var response = await AuthenticatedClientWithSubscriptionKey().GetAsync(path);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
