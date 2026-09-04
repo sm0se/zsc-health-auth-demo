@@ -14,7 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ZscServiceRegistry>();
-builder.Services.AddZscPlatformAuth(builder.Configuration);
+builder.Services.AddZscPlatformAuthWithFallback(builder.Configuration);
 builder.Services.AddTransient<TokenForwardingHandler>();
 builder.Services.AddScoped<ZscForwarder>();
 

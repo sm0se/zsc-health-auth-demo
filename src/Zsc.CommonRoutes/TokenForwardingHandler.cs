@@ -7,6 +7,7 @@ namespace Zsc.CommonRoutes;
 // Each service in the chain validates the caller's OAuth2 bearer for itself, so
 // the token has to travel the whole way down; the correlation id travels with it
 // so one inbound request can be followed across every service it touches.
+// Similarly, subscription keys (used for Health Status endpoints) are forwarded.
 //
 // Only the headers named in ZscHeaders are copied. An inbound header this
 // handler does not know about does not reach the next service.
@@ -27,6 +28,12 @@ public sealed class TokenForwardingHandler(IHttpContextAccessor httpContextAcces
             {
                 request.Headers.Remove(ZscHeaders.CorrelationId);
                 request.Headers.TryAddWithoutValidation(ZscHeaders.CorrelationId, (IEnumerable<string?>)correlationId);
+            }
+
+            if (inbound.Headers.TryGetValue(ZscHeaders.SubscriptionKey, out var subscriptionKey))
+            {
+                request.Headers.Remove(ZscHeaders.SubscriptionKey);
+                request.Headers.TryAddWithoutValidation(ZscHeaders.SubscriptionKey, (IEnumerable<string?>)subscriptionKey);
             }
         }
 
