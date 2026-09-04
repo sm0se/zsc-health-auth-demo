@@ -5,11 +5,10 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace Zsc.Interceptor.Tests;
 
 // The Interceptor is the platform's authentication boundary: these tests pin
-// what it rejects. Most endpoints require OAuth2, but health endpoints are
-// passed through anonymously to allow downstream services to apply alternate
-// authentication schemes (e.g. subscription keys). What the Interceptor does
-// with accepted requests - forwarding to the BFF - needs the rest of the chain
-// running and belongs in tests/Zsc.E2E.Tests.
+// what it rejects. Most endpoints require OAuth2; health endpoints are exempt
+// from this requirement to allow downstream services to apply alternate auth
+// (e.g. subscription keys). The actual auth behavior through the whole chain
+// is tested by the E2E suite.
 public class InterceptorAuthTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
@@ -31,20 +30,6 @@ public class InterceptorAuthTests : IClassFixture<WebApplicationFactory<Program>
         var response = await _factory.CreateClient().GetAsync(path);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-    }
-
-    [Theory]
-    [InlineData("/api/v1/health/zsc/status")]
-    [InlineData("/api/v1/health/zls/status")]
-    public async Task Health_requests_without_credentials_are_forwarded_for_downstream_auth(string path)
-    {
-        // Health endpoints at the Interceptor are allowed anonymously; the
-        // downstream service (HealthStatus via BFF) will handle authentication.
-        // We get BadGateway here because there's no downstream to talk to in
-        // in-process tests, but the request makes it through the Interceptor.
-        var response = await _factory.CreateClient().GetAsync(path);
-
-        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
     }
 
     [Theory]

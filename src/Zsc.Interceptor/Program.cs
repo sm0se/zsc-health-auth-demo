@@ -25,17 +25,8 @@ builder.Services.AddHttpClient("bff", (sp, client) =>
 
 builder.Services.AddAuthorization(authorization =>
 {
-    // The default policy requires authentication; most paths need OAuth2.
-    authorization.DefaultPolicy = new AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .Build();
-
-    // Health status paths allow either OAuth2 or subscription key (or neither,
-    // and BFF will enforce stricter policy for them). This makes the interceptor
-    // transparent to alternate authentication schemes.
-    authorization.AddPolicy("health", new AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .Build());
+    // No fallback policy means endpoints without explicit authorization metadata are allowed
+    authorization.FallbackPolicy = null;
 });
 
 var app = builder.Build();
@@ -46,8 +37,7 @@ app.MapZscLiveness("interceptor");
 
 app.MapGet("/api/v1/health/{**rest}", async (string rest, HttpContext context, ZscForwarder forwarder, CancellationToken cancellationToken) =>
     await forwarder.ForwardAsync(context, "bff", $"/api/v1/health/{rest}{context.Request.QueryString}", cancellationToken))
-    .WithName("health-forward")
-    .AllowAnonymous();
+    .WithName("health-forward");
 
 app.MapGet("/api/v1/{**rest}", async (string rest, HttpContext context, ZscForwarder forwarder, CancellationToken cancellationToken) =>
     await forwarder.ForwardAsync(context, "bff", $"/api/v1/{rest}{context.Request.QueryString}", cancellationToken))
