@@ -21,24 +21,34 @@ public sealed class SubscriptionKeyAuthenticationHandler : AuthenticationHandler
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        // Check if the request carries the subscription key header.
+        // Create a validator from the options
+        var validator = new SubscriptionKeyValidator(Options);
+
+        // Check if the request carries the subscription key header
         if (!Request.Headers.TryGetValue(SubscriptionKeyAuthenticationOptions.HeaderName, out var headerValue))
         {
-            // No header - return NoResult so the policy scheme can try another scheme.
+            // No header - return NoResult so the policy scheme can try another scheme
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
         var key = headerValue.ToString();
 
-        // Validate the key against the configured set of valid keys.
-        if (!Options.ValidKeys.Contains(key))
+        // Validate the key
+        var result = validator.Validate(key);
+        if (result == SubscriptionKeyValidator.ValidationResult.Invalid)
         {
-            // Invalid key - authentication failed.
+            // Invalid key - authentication failed
             return Task.FromResult(AuthenticateResult.Fail($"Invalid subscription key: {SubscriptionKeyAuthenticationOptions.HeaderName}"));
         }
 
-        // Valid key - create a principal with a single claim identifying the key.
-        // No scopes or per-consumer data; authentication only.
+        if (result == SubscriptionKeyValidator.ValidationResult.Missing)
+        {
+            // Empty header - authentication failed
+            return Task.FromResult(AuthenticateResult.Fail($"Empty subscription key"));
+        }
+
+        // Valid key - create a principal with a single claim identifying the key
+        // No scopes or per-consumer data; authentication only
         var claims = new[] { new Claim(ClaimTypes.Name, key) };
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);
