@@ -18,6 +18,23 @@ public sealed record ZscRoute(string Id, string PublicPathTemplate, string Downs
 //     API Interceptor service -> BFF service -> Common routes -> downstream API
 public static class ZscRoutes
 {
+    // A path is a health-status route if it is a path to the Health Status API.
+    // These are authentication-sensitive: they accept subscription keys instead of
+    // (or in addition to) OAuth2 bearer tokens.
+    //
+    // Public paths (as seen at the gateway):
+    //   /api/v1/health/zsc/status
+    //   /api/v1/health/zls/status
+    //
+    // Internal paths (as seen inside the platform):
+    //   /internal/health/zsc/status
+    //   /internal/health/zls/status
+    public static bool IsHealthStatusRoute(string path)
+    {
+        var normalizedPath = path.StartsWith('/') ? path : "/" + path;
+        return normalizedPath.StartsWith("/api/v1/health/", StringComparison.OrdinalIgnoreCase) ||
+               normalizedPath.StartsWith("/internal/health/", StringComparison.OrdinalIgnoreCase);
+    }
     public const string HealthStatusService = "health-status";
     public const string DeviceApiService = "device-api";
 

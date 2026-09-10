@@ -41,4 +41,26 @@ public class ZscRoutesTests
     {
         Assert.Null(ZscRoutes.Resolve(publicPath));
     }
+
+    [Theory]
+    [InlineData("/api/v1/health/zsc/status", true)]
+    [InlineData("/api/v1/health/zls/status", true)]
+    [InlineData("/internal/health/zsc/status", true)]
+    [InlineData("/internal/health/zls/status", true)]
+    [InlineData("/api/v1/devices/dev-0001/status", false)]
+    [InlineData("/api/v1/health", false)]
+    [InlineData("/api/v1/healthz", false)]
+    [InlineData("/healthz", false)]
+    public void IsHealthStatusRoute_correctly_identifies_health_status_paths(string path, bool expected)
+    {
+        Assert.Equal(expected, ZscRoutes.IsHealthStatusRoute(path));
+    }
+
+    [Theory]
+    [InlineData("api/v1/health/zsc/status", true)]
+    [InlineData("internal/health/zls/status", true)]
+    public void IsHealthStatusRoute_normalizes_paths_without_leading_slash(string path, bool expected)
+    {
+        Assert.Equal(expected, ZscRoutes.IsHealthStatusRoute(path));
+    }
 }

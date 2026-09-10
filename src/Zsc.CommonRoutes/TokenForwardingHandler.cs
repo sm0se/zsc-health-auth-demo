@@ -8,8 +8,11 @@ namespace Zsc.CommonRoutes;
 // the token has to travel the whole way down; the correlation id travels with it
 // so one inbound request can be followed across every service it touches.
 //
-// Only the headers named in ZscHeaders are copied. An inbound header this
-// handler does not know about does not reach the next service.
+// The subscription key (for Health Status API calls) also travels the whole chain
+// so that the final service can validate it.
+//
+// Only the headers named in ZscHeaders plus the subscription key header are copied.
+// An inbound header this handler does not know about does not reach the next service.
 public sealed class TokenForwardingHandler(IHttpContextAccessor httpContextAccessor) : DelegatingHandler
 {
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -27,6 +30,12 @@ public sealed class TokenForwardingHandler(IHttpContextAccessor httpContextAcces
             {
                 request.Headers.Remove(ZscHeaders.CorrelationId);
                 request.Headers.TryAddWithoutValidation(ZscHeaders.CorrelationId, (IEnumerable<string?>)correlationId);
+            }
+
+            if (inbound.Headers.TryGetValue(SubscriptionKeyAuthenticationOptions.HeaderName, out var subscriptionKey))
+            {
+                request.Headers.Remove(SubscriptionKeyAuthenticationOptions.HeaderName);
+                request.Headers.TryAddWithoutValidation(SubscriptionKeyAuthenticationOptions.HeaderName, (IEnumerable<string?>)subscriptionKey);
             }
         }
 

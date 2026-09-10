@@ -14,6 +14,7 @@ public sealed class EdgeHeaderPolicyMiddleware(RequestDelegate next)
     {
         ZscHeaders.Authorization,
         ZscHeaders.CorrelationId,
+        SubscriptionKeyAuthenticationOptions.HeaderName,
         "Accept",
         "Accept-Encoding",
         "Content-Type",
