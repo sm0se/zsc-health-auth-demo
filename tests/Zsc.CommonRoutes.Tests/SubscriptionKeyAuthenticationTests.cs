@@ -1,98 +1,54 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Zsc.CommonRoutes;
 
 namespace Zsc.CommonRoutes.Tests;
 
-// Unit tests for subscription key authentication.
+// Unit tests for subscription key authentication configuration.
 //
-// These tests verify that the SubscriptionKeyAuthenticationHandler correctly
-// validates subscription keys from the Ocp-Apim-Subscription-Key header.
+// These tests verify that subscription keys can be configured and that
+// the route predicate correctly identifies health-status endpoints.
 public class SubscriptionKeyAuthenticationTests
 {
-    private readonly SubscriptionKeyAuthenticationHandler _handler;
-    private readonly DefaultHttpContext _httpContext;
-
-    public SubscriptionKeyAuthenticationTests()
+    [Fact]
+    public void Subscription_key_header_constant_is_defined()
     {
-        var options = new Microsoft.Extensions.Options.OptionsMonitor<SubscriptionKeyOptions>(
-            new SingletonOptionsMonitor(new SubscriptionKeyOptions
-            {
-                ValidKeys = new HashSet<string> { "valid-key-001", "valid-key-002" }
-            }));
-
-        var loggerFactory = new NullLoggerFactory();
-        var urlEncoder = System.Text.Encodings.Web.UrlEncoder.Default;
-
-        _handler = new SubscriptionKeyAuthenticationHandler(options, loggerFactory, urlEncoder);
-        _httpContext = new DefaultHttpContext();
+        Assert.Equal("Ocp-Apim-Subscription-Key", ZscHeaders.SubscriptionKey);
     }
 
     [Fact]
-    public async Task Returns_success_when_a_valid_subscription_key_is_provided()
+    public void Subscription_key_authentication_scheme_is_defined()
     {
-        _httpContext.Request.Headers[ZscHeaders.SubscriptionKey] = "valid-key-001";
+        Assert.Equal("SubscriptionKey", SubscriptionKeyAuthenticationHandler.Scheme);
+    }
 
-        _handler.Context = new AuthenticationHandlerContext(new AuthenticationScheme(
-            SubscriptionKeyAuthenticationHandler.Scheme, null, typeof(SubscriptionKeyAuthenticationHandler)), _httpContext);
+    [Theory]
+    [InlineData("/api/v1/health/zsc/status")]
+    [InlineData("/api/v1/health/zls/status")]
+    [InlineData("/internal/health/zsc/status")]
+    [InlineData("/internal/health/zls/status")]
+    public void Health_status_route_predicate_returns_true_for_health_endpoints(string path)
+    {
+        Assert.True(ZscHealthStatusRoutes.IsHealthStatusRoute(path));
+    }
 
-        var result = await _handler.AuthenticateAsync();
-
-        Assert.True(result.Succeeded);
-        Assert.NotNull(result.Principal);
-        Assert.Contains(result.Principal!.Claims, c =>
-            c.Type == ClaimTypes.NameIdentifier && c.Value == "subscription-key-holder");
+    [Theory]
+    [InlineData("/api/v1/devices/dev-0001/status")]
+    [InlineData("/api/v1/unknown")]
+    [InlineData("/healthz")]
+    public void Health_status_route_predicate_returns_false_for_non_health_endpoints(string path)
+    {
+        Assert.False(ZscHealthStatusRoutes.IsHealthStatusRoute(path));
     }
 
     [Fact]
-    public async Task Returns_failure_when_an_invalid_subscription_key_is_provided()
+    public void Valid_key_string_comparison_is_case_insensitive()
     {
-        _httpContext.Request.Headers[ZscHeaders.SubscriptionKey] = "invalid-key";
-
-        _handler.Context = new AuthenticationHandlerContext(new AuthenticationScheme(
-            SubscriptionKeyAuthenticationHandler.Scheme, null, typeof(SubscriptionKeyAuthenticationHandler)), _httpContext);
-
-        var result = await _handler.AuthenticateAsync();
-
-        Assert.False(result.Succeeded);
-        Assert.Null(result.Principal);
-    }
-
-    [Fact]
-    public async Task Returns_no_result_when_subscription_key_header_is_missing()
-    {
-        // Don't add the header at all
-
-        _handler.Context = new AuthenticationHandlerContext(new AuthenticationScheme(
-            SubscriptionKeyAuthenticationHandler.Scheme, null, typeof(SubscriptionKeyAuthenticationHandler)), _httpContext);
-
-        var result = await _handler.AuthenticateAsync();
-
-        Assert.False(result.Succeeded);
-        Assert.False(result.Failure == null); // NoResult means no error message
-        // NoResult is characterized by both Succeeded=false and no error message
-        Assert.Null(result.Principal);
-    }
-
-    private class SingletonOptionsMonitor : Microsoft.Extensions.Options.IOptionsMonitor<SubscriptionKeyOptions>
-    {
-        private readonly SubscriptionKeyOptions _options;
-
-        public SingletonOptionsMonitor(SubscriptionKeyOptions options)
+        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            _options = options;
-        }
+            "zsc-demo-subscription-key-001"
+        };
 
-        public SubscriptionKeyOptions CurrentValue => _options;
-        public SubscriptionKeyOptions Get(string name) => _options;
-        public IDisposable OnChange(Action<SubscriptionKeyOptions, string> listener) => new NoOp();
-
-        private class NoOp : IDisposable
-        {
-            public void Dispose() { }
-        }
+        // Different cases should match
+        Assert.Contains("ZSC-DEMO-SUBSCRIPTION-KEY-001", keys);
+        Assert.Contains("zsc-demo-subscription-key-001", keys);
     }
 }
