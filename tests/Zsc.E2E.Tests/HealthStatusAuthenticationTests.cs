@@ -49,15 +49,16 @@ public class HealthStatusAuthenticationTests
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    // The cutover is complete, not additive: an OAuth2 bearer is no longer a way
-    // into the Health Status API. See docs/REQUIREMENT-R1.md, "Decisions taken".
+    // DEVIATION from docs/REQUIREMENT-R1.md: the Health Status API accepts BOTH a valid
+    // subscription key AND a valid OAuth2 bearer, so the legacy method keeps working during
+    // transition. See docs/CHANGES-R1.md for details.
     [E2ETheory]
     [InlineData("/api/v1/health/zsc/status")]
     [InlineData("/api/v1/health/zls/status")]
-    public async Task Platform_health_status_no_longer_accepts_an_oauth2_bearer_alone(string path)
+    public async Task Platform_health_status_still_accepts_an_oauth2_bearer_token(string path)
     {
         using var response = await ZscChain.GetWithBearerAsync(path);
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 }
