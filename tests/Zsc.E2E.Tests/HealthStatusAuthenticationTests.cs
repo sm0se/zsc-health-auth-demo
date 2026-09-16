@@ -6,8 +6,9 @@ namespace Zsc.E2E.Tests;
 
 // Requirement R1 - the acceptance criteria for the Health Status API.
 //
-// The ZSC and ZLS Health Status endpoints authenticate with a subscription key
-// instead of an OAuth2 bearer token, end to end through the real chain:
+// The ZSC and ZLS Health Status endpoints accept a subscription key end to end
+// through the real chain, and - by the one deviation from a hard cutover this
+// repository implements - keep accepting an OAuth2 bearer too:
 //
 //     api-gateway -> API Interceptor service -> BFF service -> Common routes -> HealthcheckStatus API
 //
@@ -49,15 +50,17 @@ public class HealthStatusAuthenticationTests
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    // The cutover is complete, not additive: an OAuth2 bearer is no longer a way
-    // into the Health Status API. See docs/REQUIREMENT-R1.md, "Decisions taken".
+    // R1's one deviation from a hard cutover: the Health Status API keeps
+    // accepting an OAuth2 bearer alongside the new subscription key, so the
+    // legacy method keeps working while the new one rolls out. See
+    // docs/REQUIREMENT-R1.md and docs/CHANGES-R1.md, "Coexistence policy".
     [E2ETheory]
     [InlineData("/api/v1/health/zsc/status")]
     [InlineData("/api/v1/health/zls/status")]
-    public async Task Platform_health_status_no_longer_accepts_an_oauth2_bearer_alone(string path)
+    public async Task Platform_health_status_still_accepts_an_oauth2_bearer_alone(string path)
     {
         using var response = await ZscChain.GetWithBearerAsync(path);
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 }
