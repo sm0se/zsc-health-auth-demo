@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -11,22 +12,31 @@ namespace Zsc.CommonRoutes;
 // Platform-wide authentication.
 //
 // Every ZSC service calls AddZscPlatformAuth in its Program.cs and gets exactly
-// the same thing: the OAuth2 bearer scheme, plus an authorization FallbackPolicy
-// that requires an authenticated user on every endpoint which does not
-// explicitly opt out. Authentication is a process-wide decision made once at
-// startup - there is no per-route policy anywhere in the platform, and no
-// service declares which of its endpoints need which scheme, because until now
-// every endpoint has needed the same one.
+// the same thing: the OAuth2 bearer scheme, the subscription-key scheme, a
+// policy scheme ("ZscSmart") that picks between them per request, and an
+// authorization FallbackPolicy that requires an authenticated user on every
+// endpoint which does not explicitly opt out.
+//
+// R1 scopes subscription-key authentication to the Health Status API alone
+// (see ZscHealthRoutePolicy) and keeps it additive there rather than a hard
+// cutover: a caller on a health-status route may present either credential.
+// Every other route is OAuth2-only, because ZscSmart only ever forwards to
+// SubscriptionKey when both the header is present AND the path is a
+// health-status route - everywhere else it forwards straight to Bearer, so a
+// subscription key on e.g. /api/v1/devices/... is never even considered.
 public static class ZscAuth
 {
     public const string OAuth2Scheme = JwtBearerDefaults.AuthenticationScheme;
+    public const string SubscriptionKeyScheme = SubscriptionKeyAuthenticationHandler.SchemeName;
+    public const string SmartScheme = "ZscSmart";
 
     public static IServiceCollection AddZscPlatformAuth(this IServiceCollection services, IConfiguration configuration)
     {
         var options = ZscOAuth2Options.FromConfiguration(configuration);
         services.AddSingleton(options);
+        services.AddSingleton(SubscriptionKeyValidator.FromConfiguration(configuration));
 
-        services.AddAuthentication(OAuth2Scheme)
+        services.AddAuthentication(SmartScheme)
             .AddJwtBearer(OAuth2Scheme, jwt =>
             {
                 jwt.TokenValidationParameters = new TokenValidationParameters
@@ -40,11 +50,20 @@ public static class ZscAuth
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.FromSeconds(30),
                 };
+            })
+            .AddScheme<AuthenticationSchemeOptions, SubscriptionKeyAuthenticationHandler>(SubscriptionKeyScheme, _ => { })
+            .AddPolicyScheme(SmartScheme, SmartScheme, policy =>
+            {
+                policy.ForwardDefaultSelector = context =>
+                    context.Request.Headers.ContainsKey(ZscHeaders.SubscriptionKey)
+                    && ZscHealthRoutePolicy.IsHealthStatusRoute(context.Request.Path)
+                        ? SubscriptionKeyScheme
+                        : OAuth2Scheme;
             });
 
         services.AddAuthorization(authorization =>
         {
-            authorization.FallbackPolicy = new AuthorizationPolicyBuilder(OAuth2Scheme)
+            authorization.FallbackPolicy = new AuthorizationPolicyBuilder(SmartScheme)
                 .RequireAuthenticatedUser()
                 .Build();
         });
