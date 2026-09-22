@@ -21,6 +21,16 @@ public static class ZscRoutes
     public const string HealthStatusService = "health-status";
     public const string DeviceApiService = "device-api";
 
+    // The Health Status API is the only part of the platform where a
+    // subscription key can authenticate (Requirement R1, with the coexistence
+    // deviation recorded in docs/CHANGES-R1.md). One predicate so every service
+    // agrees on what "a health-status route" is: the public paths as seen by the
+    // gateway, interceptor and BFF, and the internal paths served by
+    // health-status itself. Matching is case-insensitive because routing is.
+    public static bool IsHealthStatusRoute(string path) =>
+        path.StartsWith("/api/v1/health/", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/internal/health/", StringComparison.OrdinalIgnoreCase);
+
     public static readonly IReadOnlyList<ZscRoute> All = new[]
     {
         new ZscRoute("health-zsc", "/api/v1/health/zsc/status", HealthStatusService, "/internal/health/zsc/status"),

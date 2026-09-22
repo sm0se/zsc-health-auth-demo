@@ -14,6 +14,9 @@ public sealed class EdgeHeaderPolicyMiddleware(RequestDelegate next)
     {
         ZscHeaders.Authorization,
         ZscHeaders.CorrelationId,
+        // R1: the Health Status API can be called with a subscription key, so
+        // the gateway must let the header into the internal chain.
+        ZscHeaders.SubscriptionKey,
         "Accept",
         "Accept-Encoding",
         "Content-Type",
