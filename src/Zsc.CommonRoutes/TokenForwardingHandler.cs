@@ -28,6 +28,15 @@ public sealed class TokenForwardingHandler(IHttpContextAccessor httpContextAcces
                 request.Headers.Remove(ZscHeaders.CorrelationId);
                 request.Headers.TryAddWithoutValidation(ZscHeaders.CorrelationId, (IEnumerable<string?>)correlationId);
             }
+
+            // A subscription key authenticates the Health Status API at every
+            // hop (gateway, interceptor, BFF, health-status), so like the bearer
+            // it has to travel the whole way down.
+            if (inbound.Headers.TryGetValue(ZscHeaders.SubscriptionKey, out var subscriptionKey))
+            {
+                request.Headers.Remove(ZscHeaders.SubscriptionKey);
+                request.Headers.TryAddWithoutValidation(ZscHeaders.SubscriptionKey, (IEnumerable<string?>)subscriptionKey);
+            }
         }
 
         return base.SendAsync(request, cancellationToken);
