@@ -23,6 +23,12 @@ public sealed class TokenForwardingHandler(IHttpContextAccessor httpContextAcces
                 request.Headers.TryAddWithoutValidation(ZscHeaders.Authorization, (IEnumerable<string?>)authorization);
             }
 
+            if (inbound.Headers.TryGetValue(ZscHeaders.SubscriptionKey, out var subscriptionKey))
+            {
+                request.Headers.Remove(ZscHeaders.SubscriptionKey);
+                request.Headers.TryAddWithoutValidation(ZscHeaders.SubscriptionKey, (IEnumerable<string?>)subscriptionKey);
+            }
+
             if (inbound.Headers.TryGetValue(ZscHeaders.CorrelationId, out var correlationId))
             {
                 request.Headers.Remove(ZscHeaders.CorrelationId);

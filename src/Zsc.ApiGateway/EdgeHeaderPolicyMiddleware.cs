@@ -13,6 +13,7 @@ public sealed class EdgeHeaderPolicyMiddleware(RequestDelegate next)
     public static readonly IReadOnlySet<string> Allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ZscHeaders.Authorization,
+        ZscHeaders.SubscriptionKey,
         ZscHeaders.CorrelationId,
         "Accept",
         "Accept-Encoding",

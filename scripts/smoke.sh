@@ -26,8 +26,9 @@ TOKEN=$(curl -fsS -X POST "$GATEWAY/dev/token" | sed -n 's/.*"access_token":"\([
 echo "liveness"
 check "gateway /healthz" 200 "$GATEWAY/healthz"
 
-echo "OAuth2 (current behaviour)"
+echo "OAuth2 and anonymous behavior"
 check "health zsc, no credentials"  401 "$GATEWAY/api/v1/health/zsc/status"
+check "health zsc, bearer coexistence" 200 -H "Authorization: Bearer $TOKEN" "$GATEWAY/api/v1/health/zsc/status"
 check "health zsc, bearer"          200 -H "Authorization: Bearer $TOKEN" "$GATEWAY/api/v1/health/zsc/status"
 check "health zls, bearer"          200 -H "Authorization: Bearer $TOKEN" "$GATEWAY/api/v1/health/zls/status"
 check "device status, bearer"       200 -H "Authorization: Bearer $TOKEN" "$GATEWAY/api/v1/devices/dev-0001/status"
