@@ -5,5 +5,6 @@ namespace Zsc.CommonRoutes;
 public static class ZscHeaders
 {
     public const string Authorization = "Authorization";
+    public const string SubscriptionKey = "Ocp-Apim-Subscription-Key";
     public const string CorrelationId = "X-Correlation-Id";
 }
