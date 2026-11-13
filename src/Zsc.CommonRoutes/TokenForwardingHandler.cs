@@ -28,6 +28,12 @@ public sealed class TokenForwardingHandler(IHttpContextAccessor httpContextAcces
                 request.Headers.Remove(ZscHeaders.CorrelationId);
                 request.Headers.TryAddWithoutValidation(ZscHeaders.CorrelationId, (IEnumerable<string?>)correlationId);
             }
+
+            if (inbound.Headers.TryGetValue(ZscHeaders.SubscriptionKey, out var subscriptionKey))
+            {
+                request.Headers.Remove(ZscHeaders.SubscriptionKey);
+                request.Headers.TryAddWithoutValidation(ZscHeaders.SubscriptionKey, (IEnumerable<string?>)subscriptionKey);
+            }
         }
 
         return base.SendAsync(request, cancellationToken);

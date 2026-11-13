@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -8,18 +9,41 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Zsc.CommonRoutes;
 
-// Platform-wide authentication.
+// Platform authentication.
 //
-// Every ZSC service calls AddZscPlatformAuth in its Program.cs and gets exactly
-// the same thing: the OAuth2 bearer scheme, plus an authorization FallbackPolicy
-// that requires an authenticated user on every endpoint which does not
-// explicitly opt out. Authentication is a process-wide decision made once at
-// startup - there is no per-route policy anywhere in the platform, and no
-// service declares which of its endpoints need which scheme, because until now
-// every endpoint has needed the same one.
+// Every ZSC service calls AddZscPlatformAuth in its Program.cs: the OAuth2 bearer
+// scheme, plus an authorization FallbackPolicy that requires an authenticated
+// user on every endpoint which does not explicitly opt out. That fallback is the
+// default for the whole platform.
+//
+// The one exception is the Health Status API. A service that owns such routes
+// also calls AddZscSubscriptionKey, which adds the Ocp-Apim-Subscription-Key
+// scheme and a named policy (SubscriptionKeyPolicy). Endpoints opt in with
+// RequireAuthorization(SubscriptionKeyPolicy), and that policy evaluates only the
+// key scheme, so a bearer token never opens those endpoints. Which routes use
+// the key is recorded once in ZscRoutes (ZscRoute.SubscriptionKey).
 public static class ZscAuth
 {
     public const string OAuth2Scheme = JwtBearerDefaults.AuthenticationScheme;
+    public const string SubscriptionKeyScheme = "SubscriptionKey";
+    public const string SubscriptionKeyPolicy = "SubscriptionKey";
+
+    public static IServiceCollection AddZscSubscriptionKey(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddSingleton(ZscSubscriptionKeys.FromConfiguration(configuration));
+
+        services.AddAuthentication()
+            .AddScheme<AuthenticationSchemeOptions, SubscriptionKeyAuthHandler>(SubscriptionKeyScheme, _ => { });
+
+        services.AddAuthorization(authorization =>
+        {
+            authorization.AddPolicy(SubscriptionKeyPolicy, policy => policy
+                .AddAuthenticationSchemes(SubscriptionKeyScheme)
+                .RequireAuthenticatedUser());
+        });
+
+        return services;
+    }
 
     public static IServiceCollection AddZscPlatformAuth(this IServiceCollection services, IConfiguration configuration)
     {

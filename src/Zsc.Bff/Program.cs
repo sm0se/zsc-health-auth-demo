@@ -30,6 +30,15 @@ app.UseZscPlatformAuth();
 
 app.MapZscLiveness("bff");
 
+// Subscription-key routes are not gated here either; the owning service checks the
+// key. Each one resolves through the common route table to its downstream.
+foreach (var route in ZscRoutes.All.Where(r => r.SubscriptionKey))
+{
+    app.MapGet(route.PublicPathTemplate, async (HttpContext context, ZscForwarder forwarder, CancellationToken cancellationToken) =>
+        await forwarder.ForwardAsync(context, route.DownstreamService, $"{route.DownstreamPathTemplate}{context.Request.QueryString}", cancellationToken))
+        .AllowAnonymous();
+}
+
 app.MapGet("/api/v1/{**rest}", async (string rest, HttpContext context, ZscForwarder forwarder, CancellationToken cancellationToken) =>
 {
     var publicPath = $"/api/v1/{rest}";
