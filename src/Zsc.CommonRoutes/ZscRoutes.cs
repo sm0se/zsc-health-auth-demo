@@ -6,7 +6,10 @@ namespace Zsc.CommonRoutes;
 // One public route and the downstream it resolves to. `PublicPathTemplate` uses
 // `{name}` placeholders; whatever they capture is substituted into
 // `DownstreamPathTemplate`.
-public sealed record ZscRoute(string Id, string PublicPathTemplate, string DownstreamService, string DownstreamPathTemplate);
+// `SubscriptionKey` marks routes that authenticate with Ocp-Apim-Subscription-Key
+// instead of the OAuth2 bearer. Interceptor and BFF pass these through; the
+// service that owns the route validates the key.
+public sealed record ZscRoute(string Id, string PublicPathTemplate, string DownstreamService, string DownstreamPathTemplate, bool SubscriptionKey = false);
 
 // The common route table.
 //
@@ -23,8 +26,8 @@ public static class ZscRoutes
 
     public static readonly IReadOnlyList<ZscRoute> All = new[]
     {
-        new ZscRoute("health-zsc", "/api/v1/health/zsc/status", HealthStatusService, "/internal/health/zsc/status"),
-        new ZscRoute("health-zls", "/api/v1/health/zls/status", HealthStatusService, "/internal/health/zls/status"),
+        new ZscRoute("health-zsc", "/api/v1/health/zsc/status", HealthStatusService, "/internal/health/zsc/status", SubscriptionKey: true),
+        new ZscRoute("health-zls", "/api/v1/health/zls/status", HealthStatusService, "/internal/health/zls/status", SubscriptionKey: true),
         new ZscRoute("device-status", "/api/v1/devices/{deviceId}/status", DeviceApiService, "/internal/devices/{deviceId}/status"),
     };
 

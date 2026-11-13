@@ -14,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ZscServiceRegistry>();
 builder.Services.AddZscPlatformAuth(builder.Configuration);
+builder.Services.AddZscSubscriptionKey(builder.Configuration);
 builder.Services.AddScoped<PlatformHealthProbe>();
 
 // Liveness probes of the components this API reports on. No caller context is
@@ -31,10 +32,12 @@ app.UseZscPlatformAuth();
 app.MapZscLiveness("health-status");
 
 app.MapGet("/internal/health/zsc/status", async (PlatformHealthProbe probe, CancellationToken cancellationToken) =>
-    Results.Ok(await probe.ProbeAsync("zsc", cancellationToken)));
+    Results.Ok(await probe.ProbeAsync("zsc", cancellationToken)))
+    .RequireAuthorization(ZscAuth.SubscriptionKeyPolicy);
 
 app.MapGet("/internal/health/zls/status", async (PlatformHealthProbe probe, CancellationToken cancellationToken) =>
-    Results.Ok(await probe.ProbeAsync("zls", cancellationToken)));
+    Results.Ok(await probe.ProbeAsync("zls", cancellationToken)))
+    .RequireAuthorization(ZscAuth.SubscriptionKeyPolicy);
 
 app.Run();
 
