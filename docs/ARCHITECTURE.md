@@ -40,21 +40,29 @@ raised four hops down surfaces to the caller as a 401.
 
 ## Where authentication is decided
 
-In one place, for the whole platform: `ZscAuth.AddZscPlatformAuth` in
-`src/Zsc.CommonRoutes/ZscAuth.cs`. It installs the OAuth2 bearer scheme and sets
-`AuthorizationOptions.FallbackPolicy` to "require an authenticated user".
+`ZscAuth.AddZscPlatformAuth` in `src/Zsc.CommonRoutes/ZscAuth.cs` installs the
+OAuth2 bearer scheme and sets `AuthorizationOptions.FallbackPolicy` to "require
+an authenticated user". That is the default for the whole platform: every
+endpoint without its own authorization metadata needs an OAuth2 bearer.
 
-A fallback policy applies to every endpoint that does not carry its own
-authorization metadata. So authentication here is a **process-wide** decision
-taken once at startup, not a per-route one:
+The Health Status API is the one exception. `ZscAuth.AddZscSubscriptionKey`
+adds the `Ocp-Apim-Subscription-Key` scheme and a named policy,
+`SubscriptionKeyPolicy`, which evaluates only that scheme. Health Status
+requires it on `/internal/health/{zsc|zls}/status`, so a bearer token alone does
+not open those routes (R1). Which public routes use the key is recorded once in
+`ZscRoutes` (`ZscRoute.SubscriptionKey`).
 
-- No service declares which of its endpoints need which scheme.
-- There is no second authentication scheme anywhere in the platform.
-- The only endpoints outside the policy are the `/healthz` liveness endpoints,
-  which opt out explicitly with `.AllowAnonymous()` (see `ZscLiveness`).
+- The interceptor and BFF map those key-flagged public paths as anonymous
+  pass-throughs ahead of their OAuth2 catch-all. They do not check the key; the
+  owning service does. A health request with no key is therefore forwarded and
+  rejected by health-status with 401, not by the interceptor.
+- Every other route stays OAuth2. The only endpoints outside the bearer policy
+  are the `/healthz` liveness endpoints (`ZscLiveness`) and the key-flagged
+  health routes.
+- The key is validated only by health-status, against `Zsc:SubscriptionKeys`.
 
-Four processes install it independently — interceptor, bff, health-status,
-device-api — so a caller's token is validated four times on its way down.
+Four processes install the OAuth2 policy independently (interceptor, bff,
+health-status, device-api), so a bearer is validated on each hop it reaches.
 
 ## Where headers are narrowed
 

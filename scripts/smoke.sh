@@ -26,15 +26,15 @@ TOKEN=$(curl -fsS -X POST "$GATEWAY/dev/token" | sed -n 's/.*"access_token":"\([
 echo "liveness"
 check "gateway /healthz" 200 "$GATEWAY/healthz"
 
-echo "OAuth2 (current behaviour)"
-check "health zsc, no credentials"  401 "$GATEWAY/api/v1/health/zsc/status"
-check "health zsc, bearer"          200 -H "Authorization: Bearer $TOKEN" "$GATEWAY/api/v1/health/zsc/status"
-check "health zls, bearer"          200 -H "Authorization: Bearer $TOKEN" "$GATEWAY/api/v1/health/zls/status"
-check "device status, bearer"       200 -H "Authorization: Bearer $TOKEN" "$GATEWAY/api/v1/devices/dev-0001/status"
-
-echo "subscription key (R1 target behaviour)"
+echo "health routes: subscription key (R1)"
+check "health zsc, no credentials"   401 "$GATEWAY/api/v1/health/zsc/status"
 check "health zsc, subscription key" 200 -H "Ocp-Apim-Subscription-Key: $SUBSCRIPTION_KEY" "$GATEWAY/api/v1/health/zsc/status"
 check "health zls, subscription key" 200 -H "Ocp-Apim-Subscription-Key: $SUBSCRIPTION_KEY" "$GATEWAY/api/v1/health/zls/status"
+check "health zsc, bearer alone rejected" 401 -H "Authorization: Bearer $TOKEN" "$GATEWAY/api/v1/health/zsc/status"
+check "health zls, bearer alone rejected" 401 -H "Authorization: Bearer $TOKEN" "$GATEWAY/api/v1/health/zls/status"
+
+echo "other APIs: OAuth2 bearer"
+check "device status, bearer"                    200 -H "Authorization: Bearer $TOKEN" "$GATEWAY/api/v1/devices/dev-0001/status"
 check "device status, subscription key rejected" 401 -H "Ocp-Apim-Subscription-Key: $SUBSCRIPTION_KEY" "$GATEWAY/api/v1/devices/dev-0001/status"
 
 echo
